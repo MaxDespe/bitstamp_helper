@@ -1,0 +1,486 @@
+<?php 
+
+/**
+*
+*
+*/
+class BTCHelpers
+{
+	
+
+    /**
+     * Размер комиссии сервиса:
+     * @example (20000 сатоши, 0.0002 BTC, 200 XBT)
+     */
+    CONST COMMISSION_AMOUNT = 0.0002;
+
+    /**
+     * Комиссия не взимается с платежей менее:
+     * @example (100000 сатоши, 0.001 BTC, 1000 XBT)
+     */
+    CONST AMOUNT_WITHOUT_COMMISSION = 0.001;
+
+    /**
+     * Минимальная сумма для процессинга платежей:
+     * @example (30000 Сатоши, 0.0003 BTC, 300 XBT)
+     */
+    CONST AMOUNT_LIMIT = 0.0003;
+
+
+	/*
+	*
+	*/
+	public $rub;
+	public $btc;
+	public $countAddressTransactions;
+	public $countBitApsMethodName;
+	/*
+	*
+	*/
+	public function __construct() 
+	{
+        $this->rub = $rub;
+        $this->btc = $btc;
+		$this->countAddressTransactions = $countAddressTransactions;
+		return $this;
+    }
+	
+	
+	public function getMethodBTCclass($data)
+	{
+		$my_object = $data; 
+		$class_methods = get_class_methods(get_class($my_object));
+	
+		foreach ($class_methods as $method_name) 
+		{
+			$MethodName = "$method_name\n";
+			$this->MethodName = $MethodName;
+			$BitAps[] = $MethodName;
+			$this->BitAps = $BitAps;  
+			echo "<br />";
+		}
+		
+		$this->countBitApsMethodName = count($BitAps);
+		return ($BitAps);
+	}
+	
+	
+	/*
+	*
+	*/
+	public  function rub() {
+		$this->rub;
+		return $rub;
+	}
+
+	/*
+	*
+	*/
+	public  function btc() {
+		$this->btc;
+		return $btc;
+	}
+	
+	
+		/*
+	*
+	*/
+	function post_api($url, $postfields)
+	{
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postfields);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+    $result = curl_exec($ch);
+    return $result;
+	}
+	
+
+	/**
+	* @param string $url
+	* @param array $params []
+	* @param array|boolean $post false
+	* @return mixed
+	* @throws Exception
+	*/
+    public static function getResponse($url, $params = [], $post = false)
+    {
+        
+        $url .= (($queryString = http_build_query($params)) ? '?' . $queryString : '');
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+        if (is_array($post) && !empty($post)) {
+            $post = array_filter($post, function ($value) {
+                return ($value === false) ? false : true;
+            });
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post));
+        } else {
+            curl_setopt($ch, CURLOPT_POST, 0);
+        }
+
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        $response = curl_exec($ch);
+        $response = json_decode($response, true);
+
+        if ($response && is_array($response) && isset($response['error_code']))
+		{
+            throw new Exception($response['message'], $response['error_code']);
+		}
+        return $response;
+    }
+
+	/**
+     * Обработка колбэков
+     *
+     * Для подтверждения ответа на наши колбэки, ваш сервер должен вернуть Invoice в ответ, в обычном текстовом формате.
+     * В случае не верного ответа нашему серверу, обратный отклик будет отправлен повторно с каждым новым блоком в течение трёх дней.
+     * Если ваш сервер долгое время не отвечает на отклики, то мы вправе заблокировать приём платежей для вашего сервиса.
+     *
+     * @param array $post
+     * @return Response
+     */
+    public  function getCallbackResponse($post = [])
+    {
+        return new Response($post);
+    }
+	
+	/*
+	*	Курс обмена BTC
+	*	{bitstamp | bitfinex | coinbase | average}	опциональное поле, market name, По умолчанию = average
+	*/
+	public function checkTickerGoogle()
+	{
+		$url = 'https://www.google.com/finance/quote/BTC-RUB';
+		//$String = file_get_contents($url);
+        $String =	$this->url_get_contents($url);
+		$result = $this->Parse($String, '<div class="YMlKec fxKbKc">', '</div>');
+		$vrub = str_replace(",", " ", $result);
+		$rub = preg_replace("/\s+/", "", $vrub);
+		var_dump($rub);
+		return $rub;
+	}
+
+
+    /*
+	*Курс обмена BTC
+	*{bitstamp | bitfinex | coinbase | average}	опциональное поле, market name, По умолчанию = average
+	*/
+	public function checkTicker()
+	{
+		$market = "average";
+	//	$data = file_get_contents("https://bitaps.com/api/ticker/". $market);
+		$data =	$this->url_get_contents("https://bitaps.com/api/ticker/". $market);
+	
+		$respond = json_decode($data, true);
+		$btc  = $respond["btc"]; // Exchange rate Bitcoin to USD
+		$rub = $respond["fx_rates"]["rub"]; // Exchange rate Bitcoin to RUB is derived from the value of the USD
+		
+	return $rub;
+	}
+	
+	
+	function url_get_contents ($Url)
+	{
+        if (!function_exists('curl_init'))
+        { 
+            die('CURL is not installed!');
+        }
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $Url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $output = curl_exec($ch);
+        curl_close($ch);
+        return $output;
+    }
+	
+	/*
+	*обмен на BTC
+	*@amount
+	*/
+	public  function getConvert($amount)
+	{
+		$a = 0.00000001; 
+		$rub = $this->checkTicker();
+		$y = $rub / 100000000;
+		$z = $amount/$y;
+		$g = $z*$a;
+		$payments = number_format($g,8);  
+		$this->payments = $payments;
+		return $payments;
+	}
+	
+	/*
+	* обмен на рубли
+	*@sum
+	*/
+	public  function getReConvert($summ)
+	{
+		$pos0 = str_replace(",",".",$summ);
+		$strt = explode(".", $pos0);
+		
+		if ($strt['0'] == 0) 
+		{
+			$xsumm = $strt['1'];
+			$len=strlen($xsumm);
+			$xad === 0;
+			$pos1 = strpos($xsumm,$xad);
+			$pos3 = str_pad($xsumm, 8, "0");
+			$fig = (int) str_pad('1',8,'0');
+			$result = (floor($pos3 * $fig) / $fig);
+			$s = strtr($result, array('.'=>''));
+			$numberNo = ltrim($s, '0');
+			$rub = $this->checkTicker();
+			$y = $rub/100000000;
+			$z = $numberNo*$y;
+			$rursumm = round($z);  
+			$this->rursumm = $rursumm;
+			return $rursumm;
+		}
+		else 
+		{
+			$ysumm = $strt['0'];
+			$xsumm = $strt['1'];
+			$len=strlen($xsumm);
+			$xad === 0;
+			$pos1 = strpos($xsumm,$xad);
+			$pos3 = str_pad($xsumm, 8, "0");
+			$fig = (int) str_pad('1',8,'0');
+			$result = (floor($pos3 * $fig) / $fig);
+			$s = strtr($result, array('.'=>''));
+			$numberNo = ltrim($s, '0');
+			$rub = $this->checkTicker();
+			$y = $rub/100000000;
+			$z = $numberNo*$y;
+			$sotka = round($z);  
+			$desytko = $ysumm*$rub;
+			$rursumm = $desytko+$sotka;
+			$this->rursumm = $rursumm;
+			return $rursumm;
+			
+		}
+		
+	}
+	
+	/*
+	*Создать чек на предъявителя c QR кодом
+	*[confirmations] 	число принятых подтверждений платежа в сети Биткоин (опциональное поле, по умолчанию - 3)
+	*/
+	public  function getCreateRedeemQRPNGcode($confirmations, $amount)
+	{
+		$cash = trim($amount);
+		$CreateRedeemcode = self::getCreateRedeemcode($confirmations);
+		$address = $CreateRedeemcode["address"]; // Bitcoin address to receive payments
+		$redeem_code = $CreateRedeemcode["redeem_code"]; //Redeem Code for sending payments
+		$invoice = $CreateRedeemcode["invoice"]; // Invoice to view payments and transactions
+		$urlQRcodePNG = self::getQRcodePNG($address, $cash);
+		$getBitcoinUrl = self::getBitcoinUrl($address, $cash);
+		
+		$result = array(
+			'address'=>$address,
+			'redeem_code'=>$redeem_code,
+			'invoice'=>$invoice,
+			'urlQRcodePNG'=>$urlQRcodePNG,
+			'getBitcoinUrl'=>$getBitcoinUrl
+		);
+		
+		return $result;
+	}
+	
+	/*
+	*Создать чек 
+	*[confirmations]
+	*/
+	public  function getCreateRedeemcode($confirmations)
+	{
+		return static::getResponse("https://bitaps.com/api/create/redeemcode", compact('confirmations'));
+	}
+	
+	/*
+	* Создать QR code 
+	*  
+	*  	address: Биткоин адрес
+	*	label: подпись для адреса (например, имя получателя)
+    *	message: сообщение, которое описывает транзакцию
+    *	amount: сумма в Биткоинах, разделению целых и дробных чисел идёт через точку
+	*/
+	public  function getQRcodePNG($address, $amount = false, $label = false, $message = false)
+	{
+		$getAdress = trim($address);
+		$QRcodeMessage = $getAdress;
+		if($amount) $QRcodeMessage = "bitcoin:".$getAdress."?amount=".$amount."";
+		if($label) $QRcodeMessage = "bitcoin:".$getAdress."?amount=".$amount."&label=".$label."";
+		if($message) $QRcodeMessage = "bitcoin:".$getAdress."?amount=".$amount."&label=".$label."&message=".$message."";
+		$result = "https://bitaps.com/api/qrcode/png/". urlencode($QRcodeMessage)."";
+		return $result;
+	}
+	
+	/*
+	*Получить информацию по чеку (redeem code)
+	*{redeemcode} 	Redeem Code
+	*/
+	public  function getRedeemcodeInfo($redeemcode)
+	{
+			$postfields = json_encode(array('redeemcode'=> $redeemcode));
+		$data = $this->post_api("https://bitaps.com/api/get/redeemcode/info", $postfields);
+		$respond = json_decode($data,true);
+	var_dump($respond);
+	$address = $respond["address"]; // Redeem code receiver address
+		$bal = $respond["balance"]; // Current balance
+		$pending_balance = $respond["pending_balance"]; // Pending balance (unconfirmed)
+		$paid_out = $respond["paid_out"]; // Paid out amount
+		$balanc = $bal*0.00000001;
+		$balance = number_format($balanc, 8, '.', ' ');
+			
+			$result = array(
+				'address'=>$address,
+				'balance'=>$balance,
+				'pending_balance'=>$pending_balance,
+				'paid_out'=>$paid_out
+			);
+			
+		return $result;
+	}
+	
+	/*
+	*Выплата по чеку (Redeem code)
+	*
+	*{redeemcode} 	чек (Redeem Code)
+	*{address} 	Биткоин адрес получателя
+	*{amount} 	Укажите сумму в Сатоши или отправьте значение "All available" что бы отправить всю сумму без остатка.
+	*{fee_level} 	"high", "medium", "low" уровень комиссии сети, опциональное поле, по умолчанию = "low"
+	*{custom_fee} 	Можно установить собственную комиссию сети в Сатоши на байт. Если этот параметр присутствует, fee_level будет проигнорирован.
+	*
+	*/
+	public  function getPayment($redeemcode, $address)
+	{
+			$amount = 'All available';
+		$fee_leve = 'medium';
+		$postfields = json_encode(array('redeemcode'=> $redeemcode, 'address'=> $address, 'amount'=>$amount ));
+		$data = $this->post_api("https://bitaps.com/api/use/redeemcode", $postfields);
+		$respond = json_decode($data,true);
+		$tx_hash = $respond["tx_hash"]; //Transfer transaction hash
+		$this->tx_hash = $tx_hash;
+		$result = $this->tx_hash;
+			return $result;
+		
+	}
+	
+	/*
+	*
+	*tx_hash
+	*/
+	public  function tx_hash() {
+		$this->tx_hash;
+		return $tx_hash;
+	}
+	
+	/*
+	*  Получить информацию о транзакции
+	*  Хэш транзакции
+	*  {tx_hash}	transaction hash
+	*/
+	public  function getTx_Hash($tx_hash)
+	{
+		$tx_hash = trim($tx_hash);
+		$respond =  static::getResponse("'https://api.bitaps.com/btc/v1/blockchain/transaction/". $tx_hash);
+		$result = $respond;
+		
+		return $result;
+	}
+	
+	/*
+	*	Получить информацию по адресу
+	*	{address}	address
+	*/
+	public  function getInfoAddress($address)
+	{
+		$add = trim($address);
+		return  static::getResponse("https://api.bitaps.com/btc/v1/blockchain/address/". $add);
+	}
+	
+	/*
+	*	Получить список транзакций по адресу
+	*
+	*	{address}	address
+	*	{offset}	Возвращается только 100 записей.По умолчанию: 0
+	*	{type}    transactions type {all | sent | received | multisig}	 
+			*Варианты: all (все), 
+				sent (отправленные), 	
+				received (полученные), 
+				multisig (мульти-подпись)
+	*	{status}   current transaction status {all | confirmed | unconfirmed | invalid}	
+		all (все), 
+		confirmed (подтверждённые), 
+		unconfirmed (неподтверждённые), 
+		invalid (недействительные).
+	*	
+	*/
+	public  function getInfoAddressTransactions($address, $offset = false, $type = false, $status = false)
+	{
+		$address = trim($address);
+		
+		
+		$get_count =  static::getResponse("'https://api.bitaps.com/btc/v1/blockchain/address/transactions/".$address."/".$offset."/".$type."/".$status);
+		//$get_count = count($respond);
+		$this->get_count = $get_count;
+		
+		for($b = 0; $b<=count($get_count)-1; $b++)
+		{
+			$items = $get_count[$b];
+			$Transaction[] = new AddressTransaction($items, $get_count);
+		}
+		
+		return $Transaction;
+	}
+	
+
+	/**
+	* @param string $address
+	* @param int $amount
+	* @param string $label
+	* @param string $message
+	*
+	* @return string
+	*/
+    public  function getBitcoinUrl($address, $amount = null, $label = null, $message = null)
+    {
+        if (strlen(join('', [$amount, $label, $message])) >= 1) {
+            return "bitcoin://{$address}?" . http_build_query(compact('amount', 'label', 'message'));
+        }
+		return $address;
+    }
+	
+	
+	/**
+	* Парсинг стоимости Биткоинта к рублю с сайта Гугл Финансов.
+	* @param int $amount
+	* @param string $label
+	* @param string $message
+	*
+	* @return string
+	*/
+	public function Parse($p1, $p2, $p3)
+	{
+		$num1 = strpos($p1, $p2);
+		if ($num1 === false) return 0;
+		$num2 = substr($p1, $num1);
+		return strip_tags(substr($num2, 0, strpos($num2, $p3)));
+	}
+}
+
+
+
+
+
+
+
+?>
